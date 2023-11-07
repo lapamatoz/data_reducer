@@ -20,3 +20,5 @@ Developer info and requirements
 
 ## Music integrity checker
 This script finds music files in a directory and checks the integrity of them in case of... a download error or other kind of data loss. It works by encoding each file to mp3 with ```ffmpeg```: if the files have same duration, the file is considered to be intact. If the ```ffmpeg``` fails, or the duration does not match, the file is flagged corrupted. This script will not delete anything, it is only a file scanner. The script is quite slow, so only 500 music files are processed at each run, and a database is updated. In the next run, the script processes the next 500 files, etc. The output is a ```txt```-file with path to corrupted music files.
+
+With minor modifications, the script can be used on Android (Termux with ```ffmpeg``` installed).
