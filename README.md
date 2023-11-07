@@ -17,3 +17,6 @@ In addition, the script supports a *blacklist* for duplicates. A file is conside
 Developer info and requirements
 * Only required package is Pandas. All other packages are included in Python 3.12.
 * The md5 hashing is now done in 1MB chunks. The mistake was noticed when trying to hash a 10 GB file...
+
+## Music integrity checker
+This script finds music files in a directory and checks the integrity of them in case of... a download error or other kind of data loss. It works by encoding each file to mp3 with ```ffmpeg```: if the files have same duration, the file is considered to be intact. If the ```ffmpeg``` fails, or the duration does not match, the file is flagged corrupted. This script will not delete anything, it is only a file scanner. The script is quite slow, so only 500 music files are processed at each run, and a database is updated. In the next run, the script processes the next 500 files, etc. The output is a ```txt```-file with path to corrupted music files.
