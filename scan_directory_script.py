@@ -12,9 +12,6 @@ root.withdraw()
 
 input("Press Enter and choose a directory to reduce")
 rootdir = filedialog.askdirectory()
-#input("Press Enter and choose a directory for the Excel result file")
-#excel_dir = filedialog.askdirectory()
-#excel_dir = rootdir
 
 blacklist_boolean = input("Do you want to enter a blacklist file? 1: yes, 2: no: ")
 blacklist_boolean = (blacklist_boolean == '1')
@@ -27,21 +24,16 @@ if blacklist_boolean:
         time.sleep(1.5)
         exit()
 
-excel_file_name = 'datareducer.xlsx'
-iterator = 1
+rescan_is_required = True
 
-if exists(excel_dir + '/' + excel_file_name):
-    while exists(excel_dir + '/' + excel_file_name):
-        excel_file_name = 'datareducer ({}).xlsx'.format(iterator)
-        iterator = iterator + 1
-
-deleted = 1
-
-while deleted != 0:
-    datareducer.find_files_and_folders.execute(rootdir, excel_dir, excel_file_name)
+# We scan the directory and delete duplicates, until no duplicates are deleted
+# If blacklist is not provided, only one scan is performed
+while rescan_is_required:
+    datareducer.find_files_and_folders.execute(rootdir, excel_dir)
     if blacklist_boolean:
-        deleted = datareducer.delete_files.delete_duplicates_with_rules(blacklist_name, excel_file_name)
+        number_of_deleted_files = datareducer.delete_files.delete_duplicates_with_rules(blacklist_name, excel_dir)
+        rescan_is_required = (number_of_deleted_files != 0)
     else:
-        deleted = 0
+        rescan_is_required = False
 
 input("Press Enter to exit")

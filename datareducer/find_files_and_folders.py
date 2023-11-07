@@ -6,7 +6,7 @@ def save_csv(df, name, excel_dir):
     # Saves 'df' as a .csv-file
     df.to_csv(os.path.join(excel_dir, name + '.csv'), index=False, sep=';')
 
-def execute(rootdir, excel_dir, excel_file_name):
+def execute(rootdir, excel_dir):
     bad_folders = pd.DataFrame([],columns=['Reason','Directory','Delete'])
     largest_folders = pd.DataFrame([],columns=['Directory','Size','Delete'])
 

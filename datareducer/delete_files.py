@@ -53,6 +53,7 @@ def balcklist_level(directory, blacklist):
     return res
 
 def has_same_directory_and_name_length(dir1,dir2):
+    # Currently disabled feature!
     return False
     #return dir1.split('\\')[:-1] == dir2.split('\\')[:-1] and len(dir1) == len(dir2)
 
@@ -95,6 +96,15 @@ def delete_duplicates_with_rules(blacklist_name, excel_dir):
                     'nothing here'
                 i = i+1
                 j = i+1
+            elif has_same_directory_and_name_length(dir_i, dir_j) and exists(dir_i):
+                # Currently disabled feature!
+                # If two files have same directory and files paths are of same length, delete j. We also make sure i exists
+                try:
+                    os.remove(dir_j)
+                    deleted_files_so_far = deleted_files_so_far + 1
+                except:
+                    'nothing here'
+                j = j+1
             else:
                 j=j+1
         else:
