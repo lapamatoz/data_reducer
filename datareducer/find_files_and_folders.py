@@ -1,11 +1,9 @@
 import os
 import pandas as pd
-import datareducer.general as general
+import datareducer.general
 
-### FOLDERS
-
-def save_csv_nonempty(df, name, excel_dir):
-    #if len(df) > 0:
+def save_csv(df, name, excel_dir):
+    # Saves 'df' as a .csv-file
     df.to_csv(os.path.join(excel_dir, name + '.csv'), index=False, sep=';')
 
 def execute(rootdir, excel_dir, excel_file_name):
@@ -13,22 +11,23 @@ def execute(rootdir, excel_dir, excel_file_name):
     largest_folders = pd.DataFrame([],columns=['Directory','Size','Delete'])
 
     subdirectories = [x[0] for x in os.walk(rootdir)]
+    
+    # LOOP THROUGH ALL FOLDERS
 
     for subdir in subdirectories:
         directory_path = os.path.join(rootdir, subdir)
-        files_in_dir = general.list_files(directory_path)
-        folders_in_dir = general.list_subfolders(directory_path)
+        files_in_dir = datareducer.general.list_files(directory_path)
+        folders_in_dir = datareducer.general.list_subfolders(directory_path)
         size = len(files_in_dir) + len(folders_in_dir)
+        
         if len(files_in_dir) == 0 and len(folders_in_dir) == 0:
             bad_folder = pd.DataFrame([['Empty folder', directory_path]],columns=['Reason','Directory'])
             bad_folders = pd.concat([bad_folders, bad_folder])
-        #elif len(files_in_dir) <= 1 and len(folders_in_dir) <= 1:
-        #    bad_folder = pd.DataFrame([['Almost empty folder', directory_path]],columns=['Reason','Directory'])
-        #    bad_folders = pd.concat([bad_folders, bad_folder])
-        elif general.is_temporary(subdir):
+        elif datareducer.general.is_temporary(subdir):
             bad_folder = pd.DataFrame([['Temporary folder', directory_path]],columns=['Reason','Directory'])
             bad_folders = pd.concat([bad_folders, bad_folder])
-            
+        
+        # Update the list of largest folders
         if len(largest_folders) < 200: # <- how many large files to keep in log
             large_folder = pd.DataFrame([[directory_path, size]],columns=['Directory','Size'])
             largest_folders = pd.concat([largest_folders, large_folder])
@@ -37,11 +36,10 @@ def execute(rootdir, excel_dir, excel_file_name):
             large_folder = pd.DataFrame([[directory_path, size]],columns=['Directory','Size'])
             largest_folders = pd.concat([largest_folders, large_folder])
             
-    #print(bad_folders)
     largest_folders = largest_folders.sort_values(by=['Size'],ascending=False)
     print('Folders are done!')
 
-    ### FILES
+    ### LOOP THROUGH ALL FILES
 
     sizes_list = []
     files_list = []
@@ -51,29 +49,21 @@ def execute(rootdir, excel_dir, excel_file_name):
 
     for subdir, dirs, files in os.walk(rootdir):
         for file in files:
-            
             path = os.path.join(subdir, file)
             size = os.path.getsize(path)
             
             files_list.append(path)
             sizes_list.append(size)
             
-            if general.is_temporary(file):
+            if datareducer.general.is_temporary(file):
                 bad_file = pd.DataFrame([['Temporary file', path, size]],columns=['Reason','Directory','Size'])
-                bad_files = pd.concat([bad_files, bad_file])
-            
-            if path[-4:] == '.exe':
-                bad_file = pd.DataFrame([['Executable file', path, size]],columns=['Reason','Directory','Size'])
-                bad_files = pd.concat([bad_files, bad_file])
-                
-            if path[-4:] == '.msi':
-                bad_file = pd.DataFrame([['Executable file', path, size]],columns=['Reason','Directory','Size'])
                 bad_files = pd.concat([bad_files, bad_file])
                 
             if size <= 10:
                 bad_file = pd.DataFrame([['Very small file size', path, size]],columns=['Reason','Directory','Size'])
                 bad_files = pd.concat([bad_files, bad_file])
             
+            # Update the list of largest files
             if len(largest_files) < 200: # <- how many large files to keep in log
                 large_file = pd.DataFrame([[path, size]],columns=['Directory','Size'])
                 largest_files = pd.concat([largest_files, large_file])
@@ -88,43 +78,51 @@ def execute(rootdir, excel_dir, excel_file_name):
     file_list = file_list.transpose()
     file_list.columns = ['Directory','Size']
 
-    # FIND DUPLICATE FILE SIZES
-
     print('Finding duplicates by size...')
-    # first find duplicates by size
-    duplicate_sizes = general.get_duplicates(file_list['Size'])
+    # first find duplicates sizes, i.e., the size values which appear more than once in the list
+    duplicate_sizes = datareducer.general.get_duplicates(file_list['Size'])
 
     # only keep duplicate sizes
     file_list = file_list[file_list['Size'].isin(duplicate_sizes)]
-
+    
+    # next, we find hashes for the largest files, and use blacklist to delete duplicate files as well
+    minimum_duplicate_file_list_length = 200
     number_of_files_to_be_hashed = 200
     file_duplicates = pd.DataFrame()
-    number_of_files_to_be_hashed_is_small = True
+    list_is_short_but_no_more_to_hash = False
+    
+    # We want at least 200 files in the duplicates list.
+    # Some duplicates may vanish from the list due to hash matching, reducing its size.
+    # Hashing is time consuming, so we want to minimize the number of files hashed.
+    # This loop is here to make sure that there is at least 200 files in the list after hash matching.
+    # I.e., we hash more files until there is at least 200 files in the output.
 
-    while len(file_duplicates) < 200 and number_of_files_to_be_hashed_is_small:
+    while len(file_duplicates) < minimum_duplicate_file_list_length and (!list_is_short_but_no_more_to_hash):
         file_duplicates = file_list.sort_values(by=['Size'],ascending=False)
         
         number_of_files_to_be_hashed = min(len(file_list), number_of_files_to_be_hashed)
         
         if number_of_files_to_be_hashed == len(file_list):
-            number_of_files_to_be_hashed_is_small = False
+            list_is_short_but_no_more_to_hash = True
         else:
             file_duplicates = file_duplicates[file_duplicates['Size'] >= file_duplicates.iloc[number_of_files_to_be_hashed]['Size']]
 
         print('Evaluating hashes...')
         # find hash for each file
-        file_duplicates = file_duplicates.assign(Hash=file_duplicates.apply(general.hash_function_1, axis=1))
+        file_duplicates = file_duplicates.assign(Hash=file_duplicates.apply(datareducer.general.hash_function_1, axis=1))
 
         # join hash and size, just in case
         file_duplicates['Hash'] = file_duplicates[['Size','Hash']].astype(str).apply(' '.join, axis=1)
 
         print('Finding duplicate hashes...')
         # find duplicate hashes and remove them from duplicate file list
-        duplicate_hashes = general.get_duplicates(file_duplicates['Hash'])
+        duplicate_hashes = datareducer.general.get_duplicates(file_duplicates['Hash'])
         file_duplicates = file_duplicates[file_duplicates['Hash'].isin(duplicate_hashes)]
+        
+        # double the number of files that are hashed in the next iteration
         number_of_files_to_be_hashed = 2*number_of_files_to_be_hashed
 
-    # Cleaning
+    # Cleaning and sorting
     file_duplicates = file_duplicates.sort_values(by=['Size', 'Hash'],ascending=False)
     file_duplicates['Hash'] = file_duplicates['Hash'].apply(lambda x : x.split(' ')[1])
     file_duplicates['Delete'] = file_duplicates['Size']*float('nan')
@@ -132,34 +130,12 @@ def execute(rootdir, excel_dir, excel_file_name):
     largest_files = largest_files.sort_values(by=['Size'],ascending=False)
     bad_files = bad_files.sort_values(by=['Size'],ascending=False)
 
-    print('Saving Excel-file...')
+    print('Saving csv-files...')
+    
+    save_csv(file_duplicates, 'DuplicateFiles', excel_dir)
+    save_csv(bad_files, 'BadFiles', excel_dir)
+    save_csv(bad_folders, 'BadFolders', excel_dir)
+    save_csv(largest_files, 'LargestFiles', excel_dir)
+    save_csv(largest_folders, 'LargestFolders', excel_dir)
 
-    os.chdir(excel_dir)
-
-    '''
-    def highlight_cells(x):
-        # provide your criteria for highlighting the cells here
-        return ['background-color: yellow']
-
-    def bg_header(x):
-        return "background-color: grey"
-        
-    bad_files2 = bad_files.style.applymap_index(bg_header, axis=1)
-    '''
-    # = bad_files.style.apply(highlight_cells)
-    #try:
-    '''
-    with pd.ExcelWriter(excel_file_name) as writer:
-        file_duplicates.to_excel(writer, sheet_name='DuplicateFiles',index=False)
-        bad_files.to_excel(      writer, sheet_name='BadFiles',      index=False)
-        bad_folders.to_excel(    writer, sheet_name='BadFolders',    index=False)
-        largest_files.to_excel(  writer, sheet_name='LargestFiles',  index=False)
-        largest_folders.to_excel(writer, sheet_name='LargestFolders',index=False)
-    '''
-    save_csv_nonempty(file_duplicates, 'DuplicateFiles', excel_dir)
-    save_csv_nonempty(bad_files, 'BadFiles', excel_dir)
-    save_csv_nonempty(bad_folders, 'BadFolders', excel_dir)
-    save_csv_nonempty(largest_files, 'LargestFiles', excel_dir)
-    save_csv_nonempty(largest_folders, 'LargestFolders', excel_dir)
-
-    print('All done!')
+    print('Scan has finished!')

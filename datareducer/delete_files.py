@@ -7,21 +7,21 @@ def append_sheet_with_files_marked_delete(df, sheet_name, excel_dir):
     file_path = os.path.join(excel_dir, sheet_name + '.csv')
     if exists(file_path):
         sheet = pd.read_csv(file_path, sep=';')
-        #sheet = pd.read_excel(excel_file_name, sheet_name=sheet_name)
         sheet = sheet[['Directory','Delete']]
+        # Filter only the files and folders which are marked with 'x'
         sheet = sheet[sheet['Delete'] == 'x']
         return pd.concat([df, sheet])
     else:
+        print('Could not find file "' + sheet_name + '.csv"')
         return df
 
-def read_excel_and_find_items_marked_with_x(excel_file_name):
-    #os.chdir(excel_dir)
+def read_excel_and_find_items_marked_with_x(excel_dir):
     to_be_deleted = pd.DataFrame()
-    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'DuplicateFiles', excel_file_name)
-    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'BadFiles', excel_file_name)
-    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'BadFolders', excel_file_name)
-    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'LargestFiles', excel_file_name)
-    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'LargestFolders', excel_file_name)
+    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'DuplicateFiles', excel_dir)
+    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'BadFiles', excel_dir)
+    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'BadFolders', excel_dir)
+    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'LargestFiles', excel_dir)
+    to_be_deleted = append_sheet_with_files_marked_delete(to_be_deleted, 'LargestFolders', excel_dir)
     to_be_deleted = pd.unique(to_be_deleted['Directory'])
     to_be_deleted = list(to_be_deleted)
     #print(to_be_deleted)
@@ -45,11 +45,11 @@ def delete_items_marked_with_x(to_be_deleted):
     return counter_file + counter_folder
 
 
-def order_file(directory, blacklist):
+def balcklist_level(directory, blacklist):
     res = 0.0
     for black in blacklist:
         if black in directory:
-            res = res - 1.0
+            res = res + 1.0
     return res
 
 def has_same_directory_and_name_length(dir1,dir2):
@@ -64,24 +64,33 @@ def delete_duplicates_with_rules(blacklist_name, excel_dir):
     # join hash and size, just in case
     file_duplicates = pd.read_excel(excel_dir, sheet_name="DuplicateFiles")
     file_duplicates['Hash'] = file_duplicates[['Size','Hash']].astype(str).apply(' '.join, axis=1)
-    i = 0
+    
+    # Pair of indices, which we use to loop through the list of duplicates
+    i = 0 # Pivot index
     j = 1
     
     N = len(file_duplicates)
-    deleted=0
+    deleted_files_so_far = 0
     while (j < N):
+        # If duplicate files, process. If not duplicate, move increment pivot index i, and j is the next one
         if file_duplicates.iloc[i]['Hash'] == file_duplicates.iloc[j]['Hash']:
-            if order_file(file_duplicates.iloc[i]['Directory'], blacklist) > order_file(file_duplicates.iloc[j]['Directory'], blacklist) and exists(file_duplicates.iloc[i]['Directory']):
+            dir_i = file_duplicates.iloc[i]['Directory']
+            dir_j = file_duplicates.iloc[j]['Directory']
+            
+            # If j ranks higher in the blacklist, and i exists, j is redundant and we delete j
+            if blacklist_level(dir_i, blacklist) < blacklist_level(dir_j, blacklist) and exists(dir_i):
                 try:
-                    os.remove(file_duplicates.iloc[j]['Directory'])
-                    deleted = deleted+1
+                    os.remove(dir_j)
+                    deleted_files_so_far = deleted_files_so_far + 1
                 except:
                     'nothing here'
                 j = j+1
-            elif (order_file(file_duplicates.iloc[i]['Directory'], blacklist) < order_file(file_duplicates.iloc[j]['Directory'], blacklist) or has_same_directory_and_name_length(file_duplicates.iloc[i]['Directory'],file_duplicates.iloc[j]['Directory'])) and exists(file_duplicates.iloc[j]['Directory']):
+                
+            # If i ranks higher in the blacklist, and j exists, i is redundant and we delete i
+            elif blacklist_level(dir_i, blacklist) > blacklist_level(dir_j, blacklist) and exists(dir_j):
                 try:
-                    os.remove(file_duplicates.iloc[i]['Directory'])
-                    deleted = deleted+1
+                    os.remove(dir_i)
+                    deleted_files_so_far = deleted_files_so_far + 1
                 except:
                     'nothing here'
                 i = i+1
@@ -94,5 +103,5 @@ def delete_duplicates_with_rules(blacklist_name, excel_dir):
 
 
     file_duplicates['Hash'] = file_duplicates['Hash'].apply(lambda x : x.split(' ')[1])
-    print('Deleted ' + str(deleted) + ' files out of duplicate files')
+    print('Deleted ' + str(deleted_files_so_far) + ' files out of duplicate files')
     return deleted
