@@ -97,7 +97,7 @@ def execute(rootdir, excel_dir):
     # This loop is here to make sure that there is at least 200 files in the list after hash matching.
     # I.e., we hash more files until there is at least 200 files in the output.
 
-    while len(file_duplicates) < minimum_duplicate_file_list_length and (!list_is_short_but_no_more_to_hash):
+    while len(file_duplicates) < minimum_duplicate_file_list_length and (not list_is_short_but_no_more_to_hash):
         file_duplicates = file_list.sort_values(by=['Size'],ascending=False)
         
         number_of_files_to_be_hashed = min(len(file_list), number_of_files_to_be_hashed)

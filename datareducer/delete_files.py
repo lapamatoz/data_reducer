@@ -63,7 +63,13 @@ def delete_duplicates_with_rules(blacklist_name, excel_dir):
     blacklist = blacklist.split('\n')
     #print(blacklist)
     # join hash and size, just in case
-    file_duplicates = pd.read_excel(excel_dir, sheet_name="DuplicateFiles")
+    #file_duplicates = pd.read_excel(excel_dir, sheet_name="DuplicateFiles")
+    file_path = os.path.join(excel_dir, 'DuplicateFiles.csv')
+    if exists(file_path):
+        file_duplicates = pd.read_csv(file_path, sep=';')
+    else:
+        print('Error: could not find DuplicateFiles.csv!')
+        return 0
     file_duplicates['Hash'] = file_duplicates[['Size','Hash']].astype(str).apply(' '.join, axis=1)
     
     # Pair of indices, which we use to loop through the list of duplicates
@@ -114,4 +120,4 @@ def delete_duplicates_with_rules(blacklist_name, excel_dir):
 
     file_duplicates['Hash'] = file_duplicates['Hash'].apply(lambda x : x.split(' ')[1])
     print('Deleted ' + str(deleted_files_so_far) + ' files out of duplicate files')
-    return deleted
+    return deleted_files_so_far
