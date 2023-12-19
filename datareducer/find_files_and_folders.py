@@ -53,7 +53,7 @@ def execute(rootdir, excel_dir):
             try:
                 size = os.path.getsize(path)
             except:
-                print("Could not find a file. I'll skip it:  " + path)
+                print("Could not read a file. I'll skip it:  " + path)
                 continue
             
             files_list.append(path)
