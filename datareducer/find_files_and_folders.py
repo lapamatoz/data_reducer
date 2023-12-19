@@ -50,7 +50,11 @@ def execute(rootdir, excel_dir):
     for subdir, dirs, files in os.walk(rootdir):
         for file in files:
             path = os.path.join(subdir, file)
-            size = os.path.getsize(path)
+            try:
+                size = os.path.getsize(path)
+            except:
+                print("Could not find a file. I'll skip it:  " + path)
+                continue
             
             files_list.append(path)
             sizes_list.append(size)
