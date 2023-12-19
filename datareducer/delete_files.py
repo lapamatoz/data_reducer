@@ -45,7 +45,7 @@ def delete_items_marked_with_x(to_be_deleted):
     return counter_file + counter_folder
 
 
-def balcklist_level(directory, blacklist):
+def blacklist_level(directory, blacklist):
     res = 0.0
     for black in blacklist:
         if black in directory:
